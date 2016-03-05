@@ -56,6 +56,7 @@ TODO
 * Consider renaming create() to broadcast()?
 * Consider authentication. (as this is intended for inconsequential devices on a trusted network, this is a low priority for now)
 * Consider allowing deeper access to the underlying JSON object for complicated structures.
+* Consider using fnmatch(3) for shell-like glob matching on event names.
 * Tests would be nice. :)
 
 Contributing
