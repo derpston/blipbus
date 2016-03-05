@@ -1,0 +1,18 @@
+{
+  "name": "blipbus",
+  "keywords": "arduino, bus, messaging, event, handler, json, udp, wifi",
+  "description": "Arduino library for simple shared bus messaging, using JSON, UDP, and WiFi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/derpston/blipbus.git"
+  },
+  "version": "0.0.1",
+  "authors": {
+    "name": "Derp Ston",
+    "url": "http://github.com/derpston"
+  },
+  "exclude": [
+  ],
+  "frameworks": "arduino",
+  "platforms": "atmelavr, espressif"
+}
