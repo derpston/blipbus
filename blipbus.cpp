@@ -11,8 +11,9 @@ BlipBus::BlipBus()
 {
 }
 
-void BlipBus::begin(int port)
+void BlipBus::begin(const char * devicename, int port)
 {
+    _devicename = devicename;
     _port = port;
     _sock.begin(port);
 }
@@ -21,22 +22,8 @@ void BlipBus::create(const char *event_name)
 {
     clear(_json);
     _root = &_json.createObject();
-    (*_root)["name"] = String(event_name);
-}
-
-void BlipBus::set(const char *key, const char *value)
-{
-    (*_root)[key] = value;
-}
-
-void BlipBus::set(const char *key, int value)
-{
-    (*_root)[key] = value;
-}
-
-void BlipBus::set(const char *key, double value)
-{
-    (*_root)[key] = value;
+    (*_root)["event"] = String(event_name);
+    (*_root)["src"]= String(_devicename);
 }
 
 int BlipBus::get_int(const char *key)
@@ -56,7 +43,19 @@ const char* BlipBus::get_str(const char *key)
 
 int BlipBus::send()
 {
-    _sock.beginPacket("255.255.255.255", _port);
+    return BlipBus::send("255.255.255.255", _port);
+}
+
+int BlipBus::send(const char * host, int port)
+{
+    _sock.beginPacket(host, port);
+    (*_root).printTo(_sock);
+    return _sock.endPacket();
+}
+
+int BlipBus::send(IPAddress ip, int port)
+{
+    _sock.beginPacket(ip, port);
     (*_root).printTo(_sock);
     return _sock.endPacket();
 }
@@ -87,34 +86,31 @@ void BlipBus::handle()
     // Did we get a message, with valid JSON?
     while(BlipBus::poll())
     {
-        const char *name = (*_root).get<const char*>("name");
+        const char *event = (*_root).get<const char*>("event");
 
-        // Does this message have a name key?
-        if(name == NULL)
+        // Does this message have an event key?
+        if(event == NULL)
             return;
 
-        // Have any handlers been registered?
-        if(_handlers == NULL)
-            return;
-
-        // Look for a handler with a matching name and call it.
+        // Look for a handler with a matching event and call it.
         Handler *cur = _handlers;
-        do
+        //while((cur != NULL) && ((cur = cur->next) != NULL))
+        while(cur != NULL)
         {
-            if(strcmp(cur->spec, name) == 0)
+            if(strcmp(cur->spec, event) == 0)
             {
                 cur->func_ptr();
                 return;
             }
+
+            cur = cur->next;
         }
-        while((cur = cur->next) != NULL);
 
         // No matching handlers, check special internal handlers.
-        if(strcmp("blipbus.ping", name) == 0)
-           return  _ping();
-
-        // No further handlers, ignore the message.
+        if(strcmp("blipbus.ping", event) == 0)
+            return  _ping();
     }
+
 }
 
 void BlipBus::on(const char *spec, void (*func_ptr)())
@@ -149,16 +145,15 @@ void BlipBus::on(const char *spec, void (*func_ptr)())
 
 void BlipBus::_ping()
 {
-    // Repeat the most recent message back to the sender, but change
-    // the name so it is clear it is a response to a previous ping.
-    
     // Many devices may have received a broadcast ping, so to prevent
     // them all replying at once, delay for between 0-50ms.
     delay(random(0, 50));
-    _sock.beginPacket(_sock.remoteIP(), _sock.remotePort());
-    (*_root)["name"] = "blipbus.pong";
-    (*_root).printTo(_sock);
-    _sock.endPacket();
+
+    create("blipbus.pong");
+    set("uptime", millis() / 1000);
+
+    // Send the response back to the source.
+    send(_sock.remoteIP(), _sock.remotePort());
 }
 
 

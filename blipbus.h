@@ -14,21 +14,22 @@ class BlipBus
 {
     public:
         BlipBus();
-        void begin(int);
+        void begin(const char *, int);
         void create(const char *);
-        void set(const char *, const char *);
-        void set(const char *, int);
-        void set(const char *, double);
+        template<typename T> void set(const char *, T);
         int get_int(const char *);
         double get_double(const char *);
         const char* get_str(const char *);
         int send();
+        int send(const char *, int);
+        int send(IPAddress, int);
         void dump();
         bool poll();
         void handle();
         void on(const char *, void (*)());
     private:
         WiFiUDP _sock;
+        const char * _devicename;
         int _port;
         int _lastPacketSize = 0;
         char _sockbuf[BUFSIZE] = {0};
@@ -38,3 +39,4 @@ class BlipBus
         void _ping();
 };
 
+#include "blipbus.tpp"
