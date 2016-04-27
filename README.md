@@ -38,7 +38,7 @@ void setup() {
     bb.on("digitalio.read", handle_read);
     
     // Use UDP port 3333 for sending events to the bus and listening for events.
-    bb.begin(3333);
+    bb.begin("example-device", 3333);
 }
 
 void loop() {
