@@ -47,6 +47,19 @@ void loop() {
 }
 ```
 
+The API also supports [Method Chaining](https://en.wikipedia.org/wiki/Method_chaining):
+
+```cpp
+void handle_read()
+{
+    // Got a digitalio.read event!
+    int pin = bb.get_int("pin");
+    
+    // Send a new event to all devices on this WiFi network.
+    bb.create("test.example").set("value", digitalRead(pin)).send();
+}
+```
+
 TODO
 ==
 * ~~Publish in the platform.io library list~~

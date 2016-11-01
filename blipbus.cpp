@@ -18,12 +18,13 @@ void BlipBus::begin(const char * devicename, int port)
     _sock.begin(port);
 }
 
-void BlipBus::create(const char *event_name)
+BlipBus &BlipBus::create(const char *event_name)
 {
     clear(_json);
     _root = &_json.createObject();
     (*_root)["event"] = String(event_name);
     (*_root)["src"]= String(_devicename);
+    return *this;
 }
 
 int BlipBus::get_int(const char *key)

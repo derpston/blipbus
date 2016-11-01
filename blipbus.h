@@ -15,8 +15,8 @@ class BlipBus
     public:
         BlipBus();
         void begin(const char *, int);
-        void create(const char *);
-        template<typename T> void set(const char *, T);
+        BlipBus &create(const char *);
+        template<typename T> BlipBus &set(const char *, T);
         int get_int(const char *);
         double get_double(const char *);
         const char* get_str(const char *);
