@@ -20,15 +20,15 @@ Example
 #include <blipbus.h>
 BlipBus bb = BlipBus();
 
-void handle_read()
+void handle_read(BlipBusMessage bbm)
 {
     // Got a digitalio.read event!
-    int pin = bb.get_int("pin");
+    int pin = bbm.get_int("pin");
     
     // Send a new event to all devices on this WiFi network.
-    bb.create("test.example");
-    bb.set("value", digitalRead(pin));
-    bb.send();
+    BlipBusMessage bbm_reply = BlipBusMessage("test.example");
+    bbm_reply.set("value", digitalRead(pin));
+    bb.send(bbm_reply);
 }
 
 void setup() {
@@ -47,26 +47,13 @@ void loop() {
 }
 ```
 
-The API also supports [Method Chaining](https://en.wikipedia.org/wiki/Method_chaining):
-
-```cpp
-void handle_read()
-{
-    // Got a digitalio.read event!
-    int pin = bb.get_int("pin");
-    
-    // Send a new event to all devices on this WiFi network.
-    bb.create("test.example").set("value", digitalRead(pin)).send();
-}
-```
-
 TODO
 ==
 * ~~Publish in the platform.io library list~~
+* Method chaining for one-line message sends.
 * Add installation instructions for the modern Arduino IDE with the library lookup feature.
-* Add reply() for use instead of create() when you'd like to respond to only the sender of the last message.
+* Add reply() when you'd like to respond to only the sender of the last message.
 * Make the size of the packet and JSON buffer configurable!
-* Consider renaming create() to broadcast()?
 * Consider authentication. (as this is intended for inconsequential devices on a trusted network, this is a low priority for now)
 * Consider allowing deeper access to the underlying JSON object for complicated structures.
 * Consider using fnmatch(3) for shell-like glob matching on event names.

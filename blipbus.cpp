@@ -1,15 +1,21 @@
 #include <blipbus.h>
 
-// https://github.com/bblanchon/ArduinoJson/wiki/Bag-of-Tricks#reuse-jsonbuffer
-template<typename T>
-void clear(T& instance)
-{
-    instance = T();
-}
-
 BlipBus::BlipBus()
 {
 }
+
+BlipBusMessage::BlipBusMessage()
+{
+    // _root is null... other methods should be protected from this.
+    _root = NULL;
+}
+
+BlipBusMessage::BlipBusMessage(const char *event_name)
+{
+    _root = &_json.createObject();
+    (*_root)["event"] = String(event_name);
+}
+
 
 void BlipBus::begin(const char * devicename, int port)
 {
@@ -18,52 +24,50 @@ void BlipBus::begin(const char * devicename, int port)
     _sock.begin(port);
 }
 
-BlipBus &BlipBus::create(const char *event_name)
-{
-    clear(_json);
-    _root = &_json.createObject();
-    (*_root)["event"] = String(event_name);
-    (*_root)["src"]= String(_devicename);
-    return *this;
-}
-
-int BlipBus::get_int(const char *key)
+int BlipBusMessage::get_int(const char *key)
 {
     return (*_root)[key];
 }
 
-double BlipBus::get_double(const char *key)
+double BlipBusMessage::get_double(const char *key)
 {
     return (*_root)[key];
 }
 
-const char* BlipBus::get_str(const char *key)
+const char* BlipBusMessage::get_str(const char *key)
 {
     return (*_root).get<const char*>(key);
 }
 
-int BlipBus::send()
+int BlipBus::send(BlipBusMessage bbm)
 {
-    return BlipBus::send("255.255.255.255", _port);
+    return BlipBus::send(bbm, "255.255.255.255", _port);
 }
 
-int BlipBus::send(const char * host, int port)
+int BlipBus::send(BlipBusMessage bbm, const char * host, int port)
 {
+    bbm.set("src", _devicename);
     _sock.beginPacket(host, port);
-    (*_root).printTo(_sock);
+    (*bbm.get_root()).printTo(_sock);
     return _sock.endPacket();
 }
 
-int BlipBus::send(IPAddress ip, int port)
+int BlipBus::send(BlipBusMessage bbm, IPAddress ip, int port)
 {
+    bbm.set("src", _devicename);
     _sock.beginPacket(ip, port);
-    (*_root).printTo(_sock);
+    (*bbm.get_root()).printTo(_sock);
     return _sock.endPacket();
 }
 
-void BlipBus::dump()
+void BlipBusMessage::dump()
 {
-    (*_root).prettyPrintTo(Serial);
+    (*_root).printTo(Serial);
+}
+
+JsonObject* BlipBusMessage::get_root()
+{
+    return _root;
 }
 
 bool BlipBus::poll()
@@ -74,12 +78,27 @@ bool BlipBus::poll()
         memset(_sockbuf, 0, sizeof(_sockbuf));
         _sock.read(_sockbuf, sizeof(_sockbuf) - 1);
 
-        clear(_json);
-        _root = &_json.parseObject(_sockbuf);
-        return (*_root).success();
+        return true;
     }
 
     return false;
+}
+
+BlipBusMessage BlipBus::fetch()
+{
+    BlipBusMessage bbm = BlipBusMessage();
+    bbm.parse(_sockbuf);
+    return bbm;
+}
+
+void BlipBusMessage::parse(char * serialised_json)
+{
+    _root = &_json.parseObject(serialised_json);
+}
+
+bool BlipBusMessage::is_valid()
+{
+    return (*_root).success();
 }
 
 void BlipBus::handle()
@@ -87,7 +106,12 @@ void BlipBus::handle()
     // Did we get a message, with valid JSON?
     while(BlipBus::poll())
     {
-        const char *event = (*_root).get<const char*>("event");
+        BlipBusMessage bbm = BlipBus::fetch();
+
+        if(!bbm.is_valid())
+            continue;
+
+        const char *event = bbm.get_str("event");
 
         // Does this message have an event key?
         if(event == NULL)
@@ -100,7 +124,7 @@ void BlipBus::handle()
         {
             if(strcmp(cur->spec, event) == 0)
             {
-                cur->func_ptr();
+                cur->func_ptr(bbm);
                 return;
             }
 
@@ -109,12 +133,11 @@ void BlipBus::handle()
 
         // No matching handlers, check special internal handlers.
         if(strcmp("blipbus.ping", event) == 0)
-            return  _ping();
+            return  _ping(bbm);
     }
-
 }
 
-void BlipBus::on(const char *spec, void (*func_ptr)())
+void BlipBus::on(const char *spec, void (*func_ptr)(BlipBusMessage))
 {
     Handler *cur = _handlers;
     if(cur == NULL)
@@ -144,17 +167,15 @@ void BlipBus::on(const char *spec, void (*func_ptr)())
     cur->func_ptr = func_ptr;
 }
 
-void BlipBus::_ping()
+void BlipBus::_ping(BlipBusMessage bbm)
 {
     // Many devices may have received a broadcast ping, so to prevent
     // them all replying at once, delay for between 0-50ms.
     delay(random(0, 50));
 
-    create("blipbus.pong");
-    set("uptime", millis() / 1000);
+    bbm.set("event", "blipbus.pong");
+    bbm.set("uptime", millis() / 1000);
 
     // Send the response back to the source.
-    send(_sock.remoteIP(), _sock.remotePort());
+    send(bbm, _sock.remoteIP(), _sock.remotePort());
 }
-
-

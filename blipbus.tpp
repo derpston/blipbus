@@ -4,7 +4,7 @@ Reference: http://stackoverflow.com/questions/10632251/undefined-reference-to-te
 */
 
 template<typename T>
-BlipBus &BlipBus::set(const char *key, T value)
+BlipBusMessage &BlipBusMessage::set(const char *key, T value)
 {
     (*_root)[key] = value;
     return *this;
